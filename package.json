@@ -1,0 +1,23 @@
+
+{
+  "name": "interactive-omok-server",
+  "version": "1.0.0",
+  "description": "Backend server for the real-time interactive Omok game.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "omok",
+    "gomoku",
+    "websocket",
+    "real-time",
+    "game"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "ws": "^8.17.0"
+  }
+}

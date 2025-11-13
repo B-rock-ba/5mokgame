@@ -1,0 +1,5 @@
+{
+  "name": "Interactive Omok Game",
+  "description": "A real-time, interactive Omok (Gomoku) game where one player (Professor) plays against a group of players (Audience) who vote for their moves. Features a live voting system with on-board visualization.",
+  "requestFramePermissions": []
+}
