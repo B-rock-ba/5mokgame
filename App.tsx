@@ -6,9 +6,33 @@ import type { BoardState, Player, GameStatus, Vote } from './types';
 import { BOARD_SIZE, PLAYER, GAME_STATUS, VOTE_DURATION_SECONDS } from './constants/projects';
 
 // --- WebSocket Server URL ---
-// In a real deployment, you would use wss:// for secure connections.
-// For local development, this points to the server.js backend.
-const WEBSOCKET_URL = `ws://localhost:8080`;
+// Dynamically determine WebSocket URL for Codespaces or local development
+const getWebSocketURL = () => {
+  if (typeof window === 'undefined') return 'ws://localhost:8080';
+  
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const hostname = window.location.hostname;
+  
+  // GitHub Codespaces environment
+  if (hostname.includes('.app.github.dev')) {
+    // Codespaces pattern: <name>-<port>.app.github.dev
+    // We need to replace the current port with 8080
+    const hostParts = hostname.split('.');
+    const nameAndPort = hostParts[0]; // e.g., "something-3000"
+    const nameWithoutPort = nameAndPort.split('-').slice(0, -1).join('-'); // Remove last part (port)
+    const newHostname = `${nameWithoutPort}-8080.${hostParts.slice(1).join('.')}`;
+    const wsUrl = `${protocol}//${newHostname}`;
+    console.log('Codespaces WebSocket URL:', wsUrl);
+    return wsUrl;
+  }
+  
+  // Local development
+  const wsUrl = `${protocol}//${hostname}:8080`;
+  console.log('Local WebSocket URL:', wsUrl);
+  return wsUrl;
+};
+
+const WEBSOCKET_URL = getWebSocketURL();
 
 const createEmptyBoard = (): BoardState =>
   Array.from({ length: BOARD_SIZE }, () =>
@@ -38,16 +62,18 @@ const App: React.FC = () => {
         return;
     }
 
+    console.log('Attempting to connect to WebSocket:', WEBSOCKET_URL);
     ws.current = new WebSocket(WEBSOCKET_URL);
 
     ws.current.onopen = () => {
-      console.log('WebSocket connection established.');
+      console.log('✅ WebSocket connection established to:', WEBSOCKET_URL);
       // Identify this client as the host/professor
       ws.current?.send(JSON.stringify({ type: 'HOST_JOIN' }));
     };
 
     ws.current.onmessage = (event) => {
       const message = JSON.parse(event.data);
+      console.log('📩 Received message:', message.type);
       
       switch (message.type) {
         case 'GAME_STATE_UPDATE':
@@ -58,6 +84,7 @@ const App: React.FC = () => {
           setVotes(message.payload.votes);
           break;
         case 'GAME_CREATED':
+          console.log('🎮 Game created with ID:', message.payload.gameId);
           setGameId(message.payload.gameId);
           setStatus(GAME_STATUS.PROFESSOR_TURN); // Game is ready to start
           setBoard(createEmptyBoard());
@@ -71,13 +98,14 @@ const App: React.FC = () => {
     };
 
     ws.current.onclose = () => {
-      console.log('WebSocket connection closed.');
+      console.log('❌ WebSocket connection closed.');
       setStatus(GAME_STATUS.READY);
       setGameId(null);
     };
 
     ws.current.onerror = (error) => {
-      console.error('WebSocket error:', error);
+      console.error('⚠️ WebSocket error:', error);
+      console.error('Failed to connect to:', WEBSOCKET_URL);
       setStatus(GAME_STATUS.READY);
       setGameId(null);
     };

@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Debug</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #00ff00;
+        }
+        .info { margin: 10px 0; padding: 10px; background: #2a2a2a; }
+        button { padding: 10px 20px; margin: 5px; background: #4CAF50; color: white; border: none; cursor: pointer; }
+        button:hover { background: #45a049; }
+        #log { margin-top: 20px; padding: 10px; background: #2a2a2a; min-height: 200px; }
+        .success { color: #00ff00; }
+        .error { color: #ff0000; }
+        .info-text { color: #00aaff; }
+    </style>
+</head>
+<body>
+    <h1>🔍 WebSocket Connection Debug</h1>
+    
+    <div class="info">
+        <strong>현재 페이지 정보:</strong><br>
+        <div id="pageInfo"></div>
+    </div>
+    
+    <div class="info">
+        <strong>생성된 WebSocket URL:</strong><br>
+        <div id="wsUrl" class="info-text"></div>
+    </div>
+    
+    <button onclick="testConnection()">WebSocket 연결 테스트</button>
+    <button onclick="clearLog()">로그 지우기</button>
+    
+    <div id="log"></div>
+    
+    <script>
+        const log = document.getElementById('log');
+        const pageInfo = document.getElementById('pageInfo');
+        const wsUrlDiv = document.getElementById('wsUrl');
+        
+        function addLog(message, type = 'info') {
+            const time = new Date().toLocaleTimeString();
+            const div = document.createElement('div');
+            div.className = type;
+            div.textContent = `[${time}] ${message}`;
+            log.appendChild(div);
+            log.scrollTop = log.scrollHeight;
+        }
+        
+        function clearLog() {
+            log.innerHTML = '';
+        }
+        
+        function getWebSocketURL() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const hostname = window.location.hostname;
+            
+            // GitHub Codespaces environment
+            if (hostname.includes('.app.github.dev')) {
+                const hostParts = hostname.split('.');
+                const nameAndPort = hostParts[0];
+                const nameWithoutPort = nameAndPort.split('-').slice(0, -1).join('-');
+                const newHostname = `${nameWithoutPort}-8080.${hostParts.slice(1).join('.')}`;
+                return `${protocol}//${newHostname}`;
+            }
+            
+            // Local development
+            return `${protocol}//${hostname}:8080`;
+        }
+        
+        // 페이지 정보 표시
+        pageInfo.innerHTML = `
+            Protocol: ${window.location.protocol}<br>
+            Hostname: ${window.location.hostname}<br>
+            Port: ${window.location.port}<br>
+            Full Host: ${window.location.host}<br>
+            Is Codespaces: ${window.location.hostname.includes('.app.github.dev')}
+        `;
+        
+        const wsUrl = getWebSocketURL();
+        wsUrlDiv.textContent = wsUrl;
+        addLog('페이지 로드됨', 'success');
+        addLog(`WebSocket URL 생성: ${wsUrl}`, 'info-text');
+        
+        function testConnection() {
+            addLog('연결 시도 중...', 'info-text');
+            
+            const ws = new WebSocket(wsUrl);
+            
+            ws.onopen = () => {
+                addLog('✅ 연결 성공!', 'success');
+                ws.send(JSON.stringify({ type: 'HOST_JOIN' }));
+                addLog('HOST_JOIN 메시지 전송', 'info-text');
+            };
+            
+            ws.onmessage = (event) => {
+                addLog(`📩 메시지 수신: ${event.data}`, 'success');
+            };
+            
+            ws.onerror = (error) => {
+                addLog(`❌ 연결 오류 발생`, 'error');
+                console.error('WebSocket error:', error);
+            };
+            
+            ws.onclose = (event) => {
+                addLog(`🔌 연결 종료 (코드: ${event.code}, 사유: ${event.reason || '없음'})`, 'error');
+            };
+            
+            // 5초 후 자동 종료
+            setTimeout(() => {
+                if (ws.readyState === WebSocket.OPEN) {
+                    addLog('테스트 완료, 연결 종료', 'info-text');
+                    ws.close();
+                }
+            }, 5000);
+        }
+    </script>
+</body>
+</html>

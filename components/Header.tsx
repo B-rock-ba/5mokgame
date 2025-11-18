@@ -39,10 +39,11 @@ const GameStatusDisplay: React.FC<{ status: GameStatus; winner: Player }> = ({ s
 
 
 const GameInfo: React.FC<GameInfoProps> = ({ status, winner, timer, gameId, onReset }) => {
-  // The voting URL now dynamically includes the gameId.
-  // In a real app, this would point to your voting client's domain.
+  // Get the current host for voting URL
+  const currentHost = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+  const port = typeof window !== 'undefined' ? (window.location.port || '3000') : '3000';
   const audienceUrl = gameId 
-    ? `https://your-voting-app.com/vote?game=${gameId}` 
+    ? `http://${currentHost}:${port}/vote?game=${gameId}` 
     : "about:blank";
 
   return (

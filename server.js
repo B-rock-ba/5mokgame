@@ -2,10 +2,13 @@
 const WebSocket = require('ws');
 
 const PORT = process.env.PORT || 8080;
-const wss = new WebSocket.Server({ port: PORT });
+const wss = new WebSocket.Server({ 
+    port: PORT,
+    host: '0.0.0.0' // Allow connections from any host (important for Codespaces)
+});
 
 // --- Game Constants (should match frontend) ---
-const BOARD_SIZE = 19;
+const BOARD_SIZE = 15;
 const VOTE_DURATION_SECONDS = 90;
 const PLAYER = { PROFESSOR: 1, AUDIENCE: 2 };
 const GAME_STATUS = { READY: 'READY', PROFESSOR_TURN: 'PROFESSOR_TURN', VOTING: 'VOTING', FINISHED: 'FINISHED' };
@@ -14,6 +17,7 @@ const GAME_STATUS = { READY: 'READY', PROFESSOR_TURN: 'PROFESSOR_TURN', VOTING: 
 let gameState = createNewGameState();
 let hostWs = null; // WebSocket connection for the professor/host
 const audienceClients = new Set(); // Set of WebSocket connections for audience members
+const votedClients = new Set(); // Track which clients have voted in current round
 let timerInterval = null;
 
 function createNewGameState() {
@@ -92,6 +96,7 @@ function handleAudienceMove() {
 function startVotingTimer() {
     clearInterval(timerInterval);
     gameState.timer = VOTE_DURATION_SECONDS;
+    votedClients.clear(); // Clear voted clients for new round
     timerInterval = setInterval(() => {
         gameState.timer -= 1;
         if (gameState.timer <= 0) {
@@ -144,10 +149,20 @@ wss.on('connection', (ws) => {
                 
                 case 'VOTE':
                     if (audienceClients.has(ws) && gameState.status === GAME_STATUS.VOTING) {
+                        // Check if this client has already voted
+                        if (votedClients.has(ws)) {
+                            console.log('Client tried to vote twice - rejected');
+                            break;
+                        }
+                        
                         const { row, col } = data.payload;
-                        const key = `${row},${col}`;
-                        gameState.votes[key] = (gameState.votes[key] || 0) + 1;
-                        broadcastGameState();
+                        // Validate vote position
+                        if (row >= 0 && row < BOARD_SIZE && col >= 0 && col < BOARD_SIZE && !gameState.board[row][col]) {
+                            const key = `${row},${col}`;
+                            gameState.votes[key] = (gameState.votes[key] || 0) + 1;
+                            votedClients.add(ws); // Mark this client as voted
+                            broadcastGameState();
+                        }
                     }
                     break;
 

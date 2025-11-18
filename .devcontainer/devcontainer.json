@@ -1,0 +1,28 @@
+{
+  "name": "Interactive Omok Game",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:18",
+  "forwardPorts": [3000, 8080],
+  "portsAttributes": {
+    "8080": {
+      "label": "WebSocket Server",
+      "onAutoForward": "notify",
+      "visibility": "public",
+      "protocol": "wss"
+    },
+    "3000": {
+      "label": "Vite Dev Server",
+      "onAutoForward": "openPreview",
+      "visibility": "public"
+    }
+  },
+  "postCreateCommand": "npm install",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "bradlc.vscode-tailwindcss"
+      ]
+    }
+  }
+}

@@ -1,23 +1,40 @@
 
 {
-  "name": "interactive-omok-server",
+  "name": "interactive-omok-game",
   "version": "1.0.0",
-  "description": "Backend server for the real-time interactive Omok game.",
-  "main": "server.js",
+  "description": "Real-time interactive Omok game with voting system",
   "scripts": {
-    "start": "node server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "server": "node server.js",
+    "start": "concurrently \"npm run server\" \"npm run dev\""
   },
   "keywords": [
     "omok",
     "gomoku",
     "websocket",
     "real-time",
-    "game"
+    "game",
+    "voting"
   ],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.22.0",
     "ws": "^8.17.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.55",
+    "@types/react-dom": "^18.2.19",
+    "@vitejs/plugin-react": "^4.2.1",
+    "autoprefixer": "^10.4.17",
+    "concurrently": "^8.2.2",
+    "postcss": "^8.4.35",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5.3.3",
+    "vite": "^5.1.0"
   }
 }

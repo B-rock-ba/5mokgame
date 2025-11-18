@@ -1,4 +1,4 @@
-export const BOARD_SIZE = 19;
+export const BOARD_SIZE = 15;
 export const VOTE_DURATION_SECONDS = 90;
 
 export const PLAYER = {
