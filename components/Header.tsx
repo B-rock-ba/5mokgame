@@ -40,11 +40,19 @@ const GameStatusDisplay: React.FC<{ status: GameStatus; winner: Player }> = ({ s
 
 const GameInfo: React.FC<GameInfoProps> = ({ status, winner, timer, gameId, onReset }) => {
   // Get the current host for voting URL
-  const currentHost = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
-  const port = typeof window !== 'undefined' ? (window.location.port || '3000') : '3000';
-  const audienceUrl = gameId 
-    ? `http://${currentHost}:${port}/vote?game=${gameId}` 
-    : "about:blank";
+  // Use the full URL including protocol to work in Codespaces
+  const getVotingUrl = () => {
+    if (typeof window === 'undefined') return 'about:blank';
+    if (!gameId) return 'about:blank';
+    
+    const protocol = window.location.protocol; // http: or https:
+    const host = window.location.host; // includes hostname and port
+    
+    // Use the current page's full URL format
+    return `${protocol}//${host}/vote?game=${gameId}`;
+  };
+  
+  const audienceUrl = getVotingUrl();
 
   return (
     <div className="bg-slate-800/50 p-6 rounded-lg border border-slate-700 flex flex-col items-center justify-between text-center w-full max-w-sm mx-auto">
@@ -68,13 +76,19 @@ const GameInfo: React.FC<GameInfoProps> = ({ status, winner, timer, gameId, onRe
             {gameId ? (
               <>
                 <p className="text-sm text-slate-300 mb-3">Scan the QR code to vote for the next move!</p>
-                <div className="bg-white p-2 rounded-md inline-block">
+                <div className="bg-white p-2 rounded-md inline-block mb-3">
                     <img 
                         src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(audienceUrl)}`} 
                         alt="QR code for voting"
                         width="150"
                         height="150"
                     />
+                </div>
+                <div className="mt-2 p-2 bg-slate-800 rounded text-xs break-all">
+                  <p className="text-slate-400 mb-1">또는 직접 접속:</p>
+                  <a href={audienceUrl} target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:text-cyan-300 underline">
+                    {audienceUrl}
+                  </a>
                 </div>
               </>
             ) : (
