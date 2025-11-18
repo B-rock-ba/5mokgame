@@ -18,20 +18,29 @@ const Stone: React.FC<{ player: Player }> = ({ player }) => {
   );
 };
 
-const VoteOverlay: React.FC<{ count: number, maxVotes: number }> = ({ count, maxVotes }) => {
+const VoteOverlay: React.FC<{ count: number, maxVotes: number, totalVotes: number }> = ({ count, maxVotes, totalVotes }) => {
   if (count === 0 || maxVotes === 0) return null;
-  const opacity = Math.min(0.7, (count / maxVotes) * 0.7);
-  const scale = 0.5 + (count / maxVotes) * 0.5;
+  
+  // 백분율 계산
+  const percentage = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0;
+  
+  // 투표 수에 따른 시각적 강조
+  const opacity = Math.min(0.8, (count / maxVotes) * 0.8);
+  const scale = 0.6 + (count / maxVotes) * 0.4;
+  
   return (
     <div 
-        className="absolute w-full h-full flex items-center justify-center transition-opacity duration-300"
+        className="absolute w-full h-full flex items-center justify-center transition-all duration-300"
         style={{ opacity: opacity }}
     >
         <div 
-            className="bg-amber-500 rounded-full"
+            className="bg-gradient-to-br from-amber-400 to-orange-500 rounded-full shadow-lg"
             style={{ width: `${scale * 100}%`, height: `${scale * 100}%`}}
         />
-        <span className="absolute text-white font-bold text-xs drop-shadow-md">{count}</span>
+        <div className="absolute flex flex-col items-center">
+          <span className="text-white font-bold text-sm drop-shadow-lg">{percentage}%</span>
+          <span className="text-white text-xs drop-shadow-md opacity-90">({count})</span>
+        </div>
     </div>
   );
 };
@@ -41,6 +50,9 @@ const GameBoard: React.FC<GameBoardProps> = ({ board, votes, status, onCellClick
   const cells = [];
   // Fix: Cast result of Object.values(votes) to number[] to satisfy Math.max.
   const maxVotes = Math.max(1, ...Object.values(votes) as number[]);
+  
+  // 전체 투표 수 계산
+  const totalVotes = Object.values(votes).reduce((sum: number, count) => sum + (count as number), 0);
 
   for (let row = 0; row < BOARD_SIZE; row++) {
     for (let col = 0; col < BOARD_SIZE; col++) {
@@ -60,14 +72,12 @@ const GameBoard: React.FC<GameBoardProps> = ({ board, votes, status, onCellClick
           <div className="relative w-full h-full z-10 flex items-center justify-center">
             {isClickable && <div className="w-4 h-4 rounded-full bg-transparent group-hover:bg-cyan-400/50 transition-colors duration-200"></div>}
             <Stone player={board[row][col]} />
-            {status === GAME_STATUS.VOTING && <VoteOverlay count={votes[voteKey] || 0} maxVotes={maxVotes}/>}
+            {status === GAME_STATUS.VOTING && <VoteOverlay count={votes[voteKey] || 0} maxVotes={maxVotes} totalVotes={totalVotes}/>}
           </div>
         </div>
       );
     }
-  }
-
-  const colLabels = Array.from({ length: BOARD_SIZE }, (_, i) => String.fromCharCode('A'.charCodeAt(0) + i));
+  }  const colLabels = Array.from({ length: BOARD_SIZE }, (_, i) => String.fromCharCode('A'.charCodeAt(0) + i));
   const rowLabels = Array.from({ length: BOARD_SIZE }, (_, i) => i + 1);
 
   return (

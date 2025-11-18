@@ -153,7 +153,14 @@ const App: React.FC = () => {
         <GameBoard board={board} votes={votes} status={status} onCellClick={handleCellClick} />
       </main>
       <aside className="flex-shrink-0 w-full lg:w-auto">
-        <GameInfo status={status} winner={winner} timer={timer} gameId={gameId} onReset={status === GAME_STATUS.READY ? startGame : resetGame} />
+        <GameInfo 
+          status={status} 
+          winner={winner} 
+          timer={timer} 
+          gameId={gameId} 
+          votes={votes}
+          onReset={status === GAME_STATUS.READY ? startGame : resetGame} 
+        />
       </aside>
     </div>
   );
