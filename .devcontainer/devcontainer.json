@@ -16,6 +16,7 @@
     }
   },
   "postCreateCommand": "npm install",
+  "postStartCommand": "nohup npm start > /tmp/omok.log 2>&1 &",
   "customizations": {
     "vscode": {
       "extensions": [
