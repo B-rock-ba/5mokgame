@@ -9,7 +9,7 @@ const wss = new WebSocket.Server({
 
 // --- Game Constants (should match frontend) ---
 const BOARD_SIZE = 15;
-const VOTE_DURATION_SECONDS = 90;
+const VOTE_DURATION_SECONDS = 44;
 const PLAYER = { PROFESSOR: 1, AUDIENCE: 2 };
 const GAME_STATUS = { READY: 'READY', PROFESSOR_TURN: 'PROFESSOR_TURN', VOTING: 'VOTING', FINISHED: 'FINISHED' };
 

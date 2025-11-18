@@ -79,11 +79,39 @@ const GameInfo: React.FC<GameInfoProps> = ({ status, winner, timer, gameId, vote
         <div className="my-4 w-full">
           <div className="text-6xl font-mono text-amber-400 mb-3">{timer}</div>
           
+          {/* 참여자 현황 바 */}
+          <div className="bg-slate-700/50 p-3 rounded-lg mb-3">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-sm font-semibold text-cyan-300">
+                👥 Participants
+              </h4>
+              <span className="text-lg font-bold text-cyan-400">
+                {totalVotes}/26
+              </span>
+            </div>
+            
+            {/* 프로그레스 바 */}
+            <div className="w-full bg-slate-600 rounded-full h-4 overflow-hidden">
+              <div 
+                className="h-full bg-gradient-to-r from-cyan-500 to-blue-500 transition-all duration-500 ease-out flex items-center justify-end pr-2"
+                style={{ 
+                  width: `${Math.min((totalVotes / 26) * 100, 100)}%`,
+                }}
+              >
+                {totalVotes > 0 && (
+                  <span className="text-xs font-bold text-white drop-shadow">
+                    {Math.round((totalVotes / 26) * 100)}%
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+          
           {/* 투표 통계 */}
           {totalVotes > 0 && (
             <div className="bg-slate-700/50 p-3 rounded-lg">
               <h4 className="text-sm font-semibold text-amber-300 mb-2">
-                📊 실시간 투표 현황 (총 {totalVotes}표)
+                📊 Vote Rankings
               </h4>
               <div className="space-y-1">
                 {topVotes.map((vote, idx) => (

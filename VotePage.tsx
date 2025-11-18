@@ -34,10 +34,11 @@ const VotePage: React.FC = () => {
     Array.from({ length: BOARD_SIZE }, () => Array(BOARD_SIZE).fill(null))
   );
   const [status, setStatus] = useState<GameStatus>(GAME_STATUS.READY);
-  const [timer, setTimer] = useState(90);
+  const [timer, setTimer] = useState(44);
   const [votes, setVotes] = useState<Vote>({});
   const [selectedCell, setSelectedCell] = useState<{ row: number; col: number } | null>(null);
   const [hasVoted, setHasVoted] = useState(false);
+  const [winner, setWinner] = useState<Player>(null);
   const ws = useRef<WebSocket | null>(null);
 
   useEffect(() => {
@@ -56,6 +57,7 @@ const VotePage: React.FC = () => {
         setStatus(message.payload.status);
         setTimer(message.payload.timer);
         setVotes(message.payload.votes);
+        setWinner(message.payload.winner);
         
         // 투표 시간이 끝나면 초기화
         if (message.payload.status !== GAME_STATUS.VOTING) {
@@ -107,23 +109,53 @@ const VotePage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white font-sans flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-2xl">
-        {/* 헤더 */}
+        {/* Header */}
         <div className="bg-slate-800/70 backdrop-blur-sm p-6 rounded-t-2xl border border-slate-700">
-          <h1 className="text-3xl font-bold text-center mb-2">🎮 오목 투표</h1>
+          <h1 className="text-3xl font-bold text-center mb-2">🎮 Omok Voting</h1>
           
           {status === GAME_STATUS.VOTING ? (
             <div className="text-center">
               <div className="text-6xl font-bold text-amber-400 mb-2">{timer}</div>
               <p className="text-lg text-slate-300">
-                {hasVoted ? '투표 완료! 🎉' : '돌을 놓을 위치를 선택하세요'}
+                {hasVoted ? 'Vote Submitted! 🎉' : 'Select a position for your vote'}
               </p>
             </div>
           ) : status === GAME_STATUS.PROFESSOR_TURN ? (
-            <p className="text-center text-xl text-slate-300">교수님 차례입니다... 잠시만 기다려주세요</p>
+            <p className="text-center text-xl text-slate-300">Professor's turn... Please wait</p>
           ) : status === GAME_STATUS.FINISHED ? (
-            <p className="text-center text-xl text-green-400">게임이 종료되었습니다!</p>
+            <div className="text-center py-4">
+              {winner === PLAYER.AUDIENCE ? (
+                <div className="space-y-3">
+                  <div className="text-6xl">🎉</div>
+                  <h2 className="text-3xl font-bold text-green-400 animate-pulse">
+                    YOU WIN!
+                  </h2>
+                  <p className="text-xl text-green-300">
+                    Students Victory! 🏆
+                  </p>
+                  <p className="text-slate-300">
+                    Great teamwork everyone!
+                  </p>
+                </div>
+              ) : winner === PLAYER.PROFESSOR ? (
+                <div className="space-y-3">
+                  <div className="text-6xl">😔</div>
+                  <h2 className="text-3xl font-bold text-red-400">
+                    DEFEAT...
+                  </h2>
+                  <p className="text-xl text-red-300">
+                    Professor Wins! 
+                  </p>
+                  <p className="text-slate-300">
+                    Better luck next time!
+                  </p>
+                </div>
+              ) : (
+                <p className="text-xl text-green-400">Game Over!</p>
+              )}
+            </div>
           ) : (
-            <p className="text-center text-xl text-slate-400">게임을 기다리는 중...</p>
+            <p className="text-center text-xl text-slate-400">Waiting for game...</p>
           )}
         </div>
 
@@ -188,10 +220,19 @@ const VotePage: React.FC = () => {
                           ></div>
                         )}
                         
-                        {/* 투표 현황 */}
+                        {/* Vote Status with Color Gradient */}
                         {status === GAME_STATUS.VOTING && !isOccupied && percentage > 0 && (
-                          <div className="absolute z-20 bg-amber-500/80 rounded-full w-[70%] h-[70%] flex items-center justify-center">
-                            <span className="text-white font-bold text-xs">{percentage}%</span>
+                          <div 
+                            className="absolute z-20 rounded-full w-[70%] h-[70%] flex items-center justify-center transition-all duration-300"
+                            style={{
+                              backgroundColor: `rgba(${
+                                percentage > 50 ? '239, 68, 68' : // red for >50%
+                                percentage > 30 ? '251, 146, 60' : // orange for >30%
+                                '251, 191, 36' // amber for <=30%
+                              }, ${0.7 + (percentage / 100) * 0.3})` // opacity increases with percentage
+                            }}
+                          >
+                            <span className="text-white font-bold text-xs drop-shadow-lg">{percentage}%</span>
                           </div>
                         )}
                         
@@ -220,15 +261,15 @@ const VotePage: React.FC = () => {
                   : 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white hover:from-cyan-400 hover:to-blue-400 transform hover:scale-105 shadow-lg'
               }`}
             >
-              {hasVoted ? '투표 완료 ✓' : selectedCell ? 
-                `${colLabels[selectedCell.col]}${selectedCell.row + 1}에 투표하기` : 
-                '위치를 선택하세요'}
+              {hasVoted ? 'Vote Submitted ✓' : selectedCell ? 
+                `Vote for ${colLabels[selectedCell.col]}-${selectedCell.row + 1}` : 
+                'Select a position'}
             </button>
           )}
           
           {selectedCell && !hasVoted && status === GAME_STATUS.VOTING && (
             <p className="text-center text-sm text-slate-400 mt-3">
-              선택: <span className="text-cyan-400 font-bold">{colLabels[selectedCell.col]}-{selectedCell.row + 1}</span>
+              Selected: <span className="text-cyan-400 font-bold">{colLabels[selectedCell.col]}-{selectedCell.row + 1}</span>
             </p>
           )}
         </div>

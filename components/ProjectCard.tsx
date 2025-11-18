@@ -25,8 +25,15 @@ const VoteOverlay: React.FC<{ count: number, maxVotes: number, totalVotes: numbe
   const percentage = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0;
   
   // 투표 수에 따른 시각적 강조
-  const opacity = Math.min(0.8, (count / maxVotes) * 0.8);
+  const opacity = Math.min(0.9, (count / maxVotes) * 0.9);
   const scale = 0.6 + (count / maxVotes) * 0.4;
+  
+  // 퍼센테이지에 따른 색상 변화 (빨강 -> 주황 -> 노랑)
+  const getColorByPercentage = (pct: number) => {
+    if (pct > 50) return 'from-red-500 to-red-600'; // 빨강: >50%
+    if (pct > 30) return 'from-orange-500 to-orange-600'; // 주황: >30%
+    return 'from-amber-400 to-amber-500'; // 노랑: <=30%
+  };
   
   return (
     <div 
@@ -34,7 +41,7 @@ const VoteOverlay: React.FC<{ count: number, maxVotes: number, totalVotes: numbe
         style={{ opacity: opacity }}
     >
         <div 
-            className="bg-gradient-to-br from-amber-400 to-orange-500 rounded-full shadow-lg"
+            className={`bg-gradient-to-br ${getColorByPercentage(percentage)} rounded-full shadow-lg`}
             style={{ width: `${scale * 100}%`, height: `${scale * 100}%`}}
         />
         <div className="absolute flex flex-col items-center">
