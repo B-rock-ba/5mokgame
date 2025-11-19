@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import GameBoard from './components/ProjectCard'; // Was ProjectCard.tsx
 import GameInfo from './components/Header'; // Was Header.tsx
-import type { BoardState, Player, GameStatus, Vote } from './types';
+import type { BoardState, Player, GameStatus, Vote, PlayerStats } from './types';
 import { BOARD_SIZE, PLAYER, GAME_STATUS, VOTE_DURATION_SECONDS } from './constants/projects';
 
 // --- WebSocket Server URL ---
@@ -46,6 +46,7 @@ const App: React.FC = () => {
   const [timer, setTimer] = useState(VOTE_DURATION_SECONDS);
   const [votes, setVotes] = useState<Vote>({});
   const [gameId, setGameId] = useState<string | null>(null);
+  const [topPlayers, setTopPlayers] = useState<{ best: PlayerStats | null; worst: PlayerStats | null } | null>(null);
 
   const ws = useRef<WebSocket | null>(null);
 
@@ -82,6 +83,9 @@ const App: React.FC = () => {
           setWinner(message.payload.winner);
           setTimer(message.payload.timer);
           setVotes(message.payload.votes);
+          if (message.payload.topPlayers) {
+            setTopPlayers(message.payload.topPlayers);
+          }
           break;
         case 'GAME_CREATED':
           console.log('🎮 Game created with ID:', message.payload.gameId);
@@ -159,6 +163,7 @@ const App: React.FC = () => {
           timer={timer} 
           gameId={gameId} 
           votes={votes}
+          topPlayers={topPlayers}
           onReset={status === GAME_STATUS.READY ? startGame : resetGame} 
         />
       </aside>

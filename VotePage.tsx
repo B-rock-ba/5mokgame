@@ -39,18 +39,35 @@ const VotePage: React.FC = () => {
   const [selectedCell, setSelectedCell] = useState<{ row: number; col: number } | null>(null);
   const [hasVoted, setHasVoted] = useState(false);
   const [winner, setWinner] = useState<Player>(null);
+  const [nickname, setNickname] = useState('');
+  const [clientId, setClientId] = useState('');
+  const [showNicknameModal, setShowNicknameModal] = useState(true);
+  const [nicknameInput, setNicknameInput] = useState('');
+  const [myStats, setMyStats] = useState<{ matches: number; mismatches: number; total: number } | null>(null);
   const ws = useRef<WebSocket | null>(null);
 
   useEffect(() => {
+    if (!nickname) return; // Don't connect until nickname is set
+    
     ws.current = new WebSocket(WEBSOCKET_URL);
 
     ws.current.onopen = () => {
       console.log('학생 클라이언트 연결됨');
-      ws.current?.send(JSON.stringify({ type: 'AUDIENCE_JOIN' }));
+      const newClientId = clientId || Math.random().toString(36).substring(7);
+      setClientId(newClientId);
+      ws.current?.send(JSON.stringify({ 
+        type: 'AUDIENCE_JOIN',
+        payload: { clientId: newClientId, nickname }
+      }));
     };
 
     ws.current.onmessage = (event) => {
       const message = JSON.parse(event.data);
+      
+      if (message.type === 'CLIENT_REGISTERED') {
+        setClientId(message.payload.clientId);
+        setNickname(message.payload.nickname);
+      }
       
       if (message.type === 'GAME_STATE_UPDATE') {
         setBoard(message.payload.board);
@@ -58,6 +75,11 @@ const VotePage: React.FC = () => {
         setTimer(message.payload.timer);
         setVotes(message.payload.votes);
         setWinner(message.payload.winner);
+        
+        // Update personal stats
+        if (message.payload.myStats) {
+          setMyStats(message.payload.myStats);
+        }
         
         // 투표 시간이 끝나면 초기화
         if (message.payload.status !== GAME_STATUS.VOTING) {
@@ -74,7 +96,7 @@ const VotePage: React.FC = () => {
     return () => {
       ws.current?.close();
     };
-  }, []);
+  }, [nickname]);
 
   const handleCellClick = (row: number, col: number) => {
     if (status !== GAME_STATUS.VOTING || board[row][col] || hasVoted) return;
@@ -83,14 +105,25 @@ const VotePage: React.FC = () => {
   };
 
   const handleVoteSubmit = () => {
-    if (!selectedCell || !ws.current || hasVoted) return;
+    if (!selectedCell || !ws.current || hasVoted || !clientId) return;
 
     ws.current.send(JSON.stringify({
       type: 'VOTE',
-      payload: { row: selectedCell.row, col: selectedCell.col }
+      payload: { 
+        row: selectedCell.row, 
+        col: selectedCell.col,
+        clientId 
+      }
     }));
 
     setHasVoted(true);
+  };
+  
+  const handleNicknameSubmit = () => {
+    if (nicknameInput.trim().length > 0) {
+      setNickname(nicknameInput.trim());
+      setShowNicknameModal(false);
+    }
   };
 
   const colLabels = Array.from({ length: BOARD_SIZE }, (_, i) => 
@@ -108,6 +141,37 @@ const VotePage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white font-sans flex flex-col items-center justify-center p-4">
+      {/* Nickname Modal */}
+      {showNicknameModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-800 p-8 rounded-2xl border-2 border-cyan-500 shadow-2xl max-w-md w-full">
+            <h2 className="text-3xl font-bold text-center mb-2 text-cyan-400">Welcome! 👋</h2>
+            <p className="text-slate-300 text-center mb-6">Enter your nickname to join the game</p>
+            <input
+              type="text"
+              value={nicknameInput}
+              onChange={(e) => setNicknameInput(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleNicknameSubmit()}
+              placeholder="Your nickname..."
+              maxLength={20}
+              className="w-full px-4 py-3 bg-slate-700 border-2 border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-cyan-500 transition-colors mb-4"
+              autoFocus
+            />
+            <button
+              onClick={handleNicknameSubmit}
+              disabled={nicknameInput.trim().length === 0}
+              className={`w-full py-3 rounded-lg font-bold text-lg transition-all ${
+                nicknameInput.trim().length === 0
+                  ? 'bg-slate-600 text-slate-400 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 transform hover:scale-105'
+              }`}
+            >
+              Join Game 🎮
+            </button>
+          </div>
+        </div>
+      )}
+      
       <div className="w-full max-w-2xl">
         {/* Header */}
         <div className="bg-slate-800/70 backdrop-blur-sm p-6 rounded-t-2xl border border-slate-700">
@@ -136,6 +200,30 @@ const VotePage: React.FC = () => {
                   <p className="text-slate-300">
                     Great teamwork everyone!
                   </p>
+                  
+                  {/* Personal Stats */}
+                  {myStats && myStats.total > 0 && (
+                    <div className="mt-4 p-4 bg-slate-700/50 rounded-lg">
+                      <h3 className="text-lg font-bold text-cyan-400 mb-2">Your Statistics</h3>
+                      <div className="grid grid-cols-3 gap-3 text-sm">
+                        <div className="bg-slate-800 p-2 rounded">
+                          <div className="text-green-400 font-bold text-xl">{myStats.matches}</div>
+                          <div className="text-slate-400">Matched</div>
+                        </div>
+                        <div className="bg-slate-800 p-2 rounded">
+                          <div className="text-red-400 font-bold text-xl">{myStats.mismatches}</div>
+                          <div className="text-slate-400">Different</div>
+                        </div>
+                        <div className="bg-slate-800 p-2 rounded">
+                          <div className="text-cyan-400 font-bold text-xl">{Math.round((myStats.matches / myStats.total) * 100)}%</div>
+                          <div className="text-slate-400">Match Rate</div>
+                        </div>
+                      </div>
+                      <p className="text-xs text-slate-400 mt-2">
+                        You matched with the crowd {myStats.matches} out of {myStats.total} times!
+                      </p>
+                    </div>
+                  )}
                 </div>
               ) : winner === PLAYER.PROFESSOR ? (
                 <div className="space-y-3">
@@ -149,6 +237,30 @@ const VotePage: React.FC = () => {
                   <p className="text-slate-300">
                     Better luck next time!
                   </p>
+                  
+                  {/* Personal Stats */}
+                  {myStats && myStats.total > 0 && (
+                    <div className="mt-4 p-4 bg-slate-700/50 rounded-lg">
+                      <h3 className="text-lg font-bold text-cyan-400 mb-2">Your Statistics</h3>
+                      <div className="grid grid-cols-3 gap-3 text-sm">
+                        <div className="bg-slate-800 p-2 rounded">
+                          <div className="text-green-400 font-bold text-xl">{myStats.matches}</div>
+                          <div className="text-slate-400">Matched</div>
+                        </div>
+                        <div className="bg-slate-800 p-2 rounded">
+                          <div className="text-red-400 font-bold text-xl">{myStats.mismatches}</div>
+                          <div className="text-slate-400">Different</div>
+                        </div>
+                        <div className="bg-slate-800 p-2 rounded">
+                          <div className="text-cyan-400 font-bold text-xl">{Math.round((myStats.matches / myStats.total) * 100)}%</div>
+                          <div className="text-slate-400">Match Rate</div>
+                        </div>
+                      </div>
+                      <p className="text-xs text-slate-400 mt-2">
+                        You matched with the crowd {myStats.matches} out of {myStats.total} times!
+                      </p>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <p className="text-xl text-green-400">Game Over!</p>

@@ -1,7 +1,7 @@
 
 // This file now exports the GameInfo component for the Omok game.
 import React from 'react';
-import type { GameStatus, Player, Vote } from '../types';
+import type { GameStatus, Player, Vote, PlayerStats } from '../types';
 import { PLAYER_NAME, GAME_STATUS } from '../constants/projects';
 
 interface GameInfoProps {
@@ -10,6 +10,7 @@ interface GameInfoProps {
   timer: number;
   gameId: string | null;
   votes: Vote;
+  topPlayers: { best: PlayerStats | null; worst: PlayerStats | null } | null;
   onReset: () => void;
 }
 
@@ -39,7 +40,7 @@ const GameStatusDisplay: React.FC<{ status: GameStatus; winner: Player }> = ({ s
 };
 
 
-const GameInfo: React.FC<GameInfoProps> = ({ status, winner, timer, gameId, votes, onReset }) => {
+const GameInfo: React.FC<GameInfoProps> = ({ status, winner, timer, gameId, votes, topPlayers, onReset }) => {
   // Get the current host for voting URL
   // Use the full URL including protocol to work in Codespaces
   const getVotingUrl = () => {
@@ -130,7 +131,60 @@ const GameInfo: React.FC<GameInfoProps> = ({ status, winner, timer, gameId, vote
         </div>
       )}
       
-      {(status !== GAME_STATUS.VOTING) && <div className="my-6 h-[72px]"></div>}
+      {/* 게임 종료 시 통계 표시 */}
+      {status === GAME_STATUS.FINISHED && topPlayers && (topPlayers.best || topPlayers.worst) && (
+        <div className="my-4 w-full space-y-3">
+          <h3 className="text-xl font-bold text-amber-300 mb-3">🏆 Awards</h3>
+          
+          {/* 명예의 빅데이터인 */}
+          {topPlayers.best && (
+            <div className="bg-gradient-to-br from-yellow-600/30 to-orange-600/30 p-4 rounded-lg border-2 border-yellow-500/50">
+              <div className="text-2xl mb-1">🏅</div>
+              <h4 className="text-sm font-bold text-yellow-300 mb-2">Big Data Master</h4>
+              <div className="text-lg font-bold text-white mb-1">{topPlayers.best.nickname}</div>
+              <div className="text-xs text-slate-300 space-y-1">
+                <div className="flex justify-between">
+                  <span>Match Rate:</span>
+                  <span className="font-bold text-green-400">{topPlayers.best.matchRate}%</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Matched:</span>
+                  <span className="font-bold text-green-400">{topPlayers.best.matches}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Different:</span>
+                  <span className="font-bold text-red-400">{topPlayers.best.mismatches}</span>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* 뛰어난 아이덴티티인 */}
+          {topPlayers.worst && topPlayers.best?.nickname !== topPlayers.worst?.nickname && (
+            <div className="bg-gradient-to-br from-purple-600/30 to-pink-600/30 p-4 rounded-lg border-2 border-purple-500/50">
+              <div className="text-2xl mb-1">✨</div>
+              <h4 className="text-sm font-bold text-purple-300 mb-2">Unique Thinker</h4>
+              <div className="text-lg font-bold text-white mb-1">{topPlayers.worst.nickname}</div>
+              <div className="text-xs text-slate-300 space-y-1">
+                <div className="flex justify-between">
+                  <span>Match Rate:</span>
+                  <span className="font-bold text-cyan-400">{topPlayers.worst.matchRate}%</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Matched:</span>
+                  <span className="font-bold text-green-400">{topPlayers.worst.matches}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Different:</span>
+                  <span className="font-bold text-red-400">{topPlayers.worst.mismatches}</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      
+      {(status !== GAME_STATUS.VOTING && status !== GAME_STATUS.FINISHED) && <div className="my-6 h-[72px]"></div>}
 
 
       <div className="w-full">

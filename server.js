@@ -16,8 +16,10 @@ const GAME_STATUS = { READY: 'READY', PROFESSOR_TURN: 'PROFESSOR_TURN', VOTING: 
 // --- Game State ---
 let gameState = createNewGameState();
 let hostWs = null; // WebSocket connection for the professor/host
-const audienceClients = new Set(); // Set of WebSocket connections for audience members
+const audienceClients = new Map(); // Map of clientId -> { ws, nickname }
 const votedClients = new Set(); // Track which clients have voted in current round
+const playerStats = new Map(); // Map of clientId -> { nickname, votes: [positions], matches: [], mismatches: [] }
+const voteHistory = []; // Array of { round, winningPosition, votes: Map<clientId, position> }
 let timerInterval = null;
 
 function createNewGameState() {
@@ -28,6 +30,8 @@ function createNewGameState() {
         winner: null,
         votes: {},
         timer: VOTE_DURATION_SECONDS,
+        currentRound: 0,
+        topPlayers: null, // { best, worst }
     };
 }
 
@@ -54,12 +58,65 @@ function broadcastGameState() {
         type: 'GAME_STATE_UPDATE',
         payload: gameState,
     });
-    if (hostWs) hostWs.send(message);
-    audienceClients.forEach(client => {
-        if (client.readyState === WebSocket.OPEN) {
-            client.send(message);
+    if (hostWs && hostWs.readyState === WebSocket.OPEN) hostWs.send(message);
+    
+    // Send personalized stats to each audience member
+    audienceClients.forEach((clientData, clientId) => {
+        if (clientData.ws.readyState === WebSocket.OPEN) {
+            const personalizedState = { ...gameState };
+            
+            // Add personal stats if game is finished
+            if (gameState.status === GAME_STATUS.FINISHED && playerStats.has(clientId)) {
+                const stats = playerStats.get(clientId);
+                const matches = stats.matches.length;
+                const mismatches = stats.mismatches.length;
+                const total = matches + mismatches;
+                
+                personalizedState.myStats = {
+                    matches,
+                    mismatches,
+                    total,
+                    matchRate: total > 0 ? Math.round((matches / total) * 100) : 0
+                };
+            }
+            
+            clientData.ws.send(JSON.stringify({
+                type: 'GAME_STATE_UPDATE',
+                payload: personalizedState
+            }));
         }
     });
+}
+
+function calculatePlayerStats() {
+    const stats = [];
+    
+    playerStats.forEach((data, clientId) => {
+        const matches = data.matches.length;
+        const mismatches = data.mismatches.length;
+        const total = matches + mismatches;
+        const matchRate = total > 0 ? Math.round((matches / total) * 100) : 0;
+        
+        stats.push({
+            nickname: data.nickname,
+            matches,
+            mismatches,
+            totalRounds: total,
+            matchRate
+        });
+    });
+    
+    // Sort by match rate
+    stats.sort((a, b) => b.matchRate - a.matchRate);
+    
+    if (stats.length > 0) {
+        return {
+            best: stats[0],  // 명예의 빅데이터인
+            worst: stats[stats.length - 1]  // 뛰어난 아이덴티티인
+        };
+    }
+    
+    return null;
 }
 
 function handleAudienceMove() {
@@ -71,25 +128,49 @@ function handleAudienceMove() {
         for (const [key, count] of entries) {
             if (count > maxVotes) {
                 maxVotes = count;
-                bestMove = key.split(',').map(Number);
+                bestMove = key;
             }
         }
     }
     
+    // Record this round's voting data
+    const currentRoundVotes = new Map();
+    voteHistory.forEach(record => {
+        if (record.round === gameState.currentRound) {
+            currentRoundVotes.set(record.clientId, record.position);
+        }
+    });
+    
+    // Update player stats based on winning position
     if (bestMove) {
-        const [r, c] = bestMove;
+        playerStats.forEach((data, clientId) => {
+            const roundRecords = voteHistory.filter(r => r.clientId === clientId && r.round === gameState.currentRound);
+            if (roundRecords.length > 0) {
+                const voted= roundRecords[0].position;
+                if (voted === bestMove) {
+                    data.matches.push(gameState.currentRound);
+                } else {
+                    data.mismatches.push(gameState.currentRound);
+                }
+            }
+        });
+        
+        const [r, c] = bestMove.split(',').map(Number);
         gameState.board[r][c] = PLAYER.AUDIENCE;
+        
         if (checkWin(r, c, PLAYER.AUDIENCE, gameState.board)) {
             gameState.status = GAME_STATUS.FINISHED;
             gameState.winner = PLAYER.AUDIENCE;
+            gameState.topPlayers = calculatePlayerStats();
         } else {
             gameState.status = GAME_STATUS.PROFESSOR_TURN;
         }
     } else {
-        // No votes, turn goes back to professor
         gameState.status = GAME_STATUS.PROFESSOR_TURN;
     }
+    
     gameState.votes = {};
+    gameState.currentRound++;
     broadcastGameState();
 }
 
@@ -126,7 +207,25 @@ wss.on('connection', (ws) => {
                 
                 case 'AUDIENCE_JOIN':
                      console.log('Audience member connected.');
-                     audienceClients.add(ws);
+                     const clientId = data.payload?.clientId || Math.random().toString(36).substring(7);
+                     const nickname = data.payload?.nickname || `Player${audienceClients.size + 1}`;
+                     
+                     audienceClients.set(clientId, { ws, nickname });
+                     
+                     // Initialize player stats
+                     if (!playerStats.has(clientId)) {
+                         playerStats.set(clientId, {
+                             nickname,
+                             matches: [],
+                             mismatches: []
+                         });
+                     }
+                     
+                     // Send clientId back to client
+                     ws.send(JSON.stringify({ 
+                         type: 'CLIENT_REGISTERED', 
+                         payload: { clientId, nickname } 
+                     }));
                      ws.send(JSON.stringify({ type: 'GAME_STATE_UPDATE', payload: gameState }));
                      break;
 
@@ -138,6 +237,7 @@ wss.on('connection', (ws) => {
                             if (checkWin(row, col, PLAYER.PROFESSOR, gameState.board)) {
                                 gameState.status = GAME_STATUS.FINISHED;
                                 gameState.winner = PLAYER.PROFESSOR;
+                                gameState.topPlayers = calculatePlayerStats();
                             } else {
                                 gameState.status = GAME_STATUS.VOTING;
                                 startVotingTimer();
@@ -148,9 +248,10 @@ wss.on('connection', (ws) => {
                     break;
                 
                 case 'VOTE':
-                    if (audienceClients.has(ws) && gameState.status === GAME_STATUS.VOTING) {
+                    const votingClientId = data.payload?.clientId;
+                    if (votingClientId && audienceClients.has(votingClientId) && gameState.status === GAME_STATUS.VOTING) {
                         // Check if this client has already voted
-                        if (votedClients.has(ws)) {
+                        if (votedClients.has(votingClientId)) {
                             console.log('Client tried to vote twice - rejected');
                             break;
                         }
@@ -160,7 +261,15 @@ wss.on('connection', (ws) => {
                         if (row >= 0 && row < BOARD_SIZE && col >= 0 && col < BOARD_SIZE && !gameState.board[row][col]) {
                             const key = `${row},${col}`;
                             gameState.votes[key] = (gameState.votes[key] || 0) + 1;
-                            votedClients.add(ws); // Mark this client as voted
+                            votedClients.add(votingClientId); // Mark this client as voted
+                            
+                            // Record this vote
+                            voteHistory.push({
+                                round: gameState.currentRound,
+                                clientId: votingClientId,
+                                position: key
+                            });
+                            
                             broadcastGameState();
                         }
                     }
@@ -171,6 +280,10 @@ wss.on('connection', (ws) => {
                         console.log('Game reset by host.');
                         clearInterval(timerInterval);
                         gameState = createNewGameState();
+                        // Clear stats but keep players
+                        playerStats.clear();
+                        voteHistory.length = 0;
+                        votedClients.clear();
                         hostWs.send(JSON.stringify({ type: 'GAME_CREATED', payload: { gameId: gameState.gameId } }));
                         broadcastGameState();
                     }
@@ -188,10 +301,20 @@ wss.on('connection', (ws) => {
             hostWs = null;
             clearInterval(timerInterval);
             // Notify audience that the host left
-            audienceClients.forEach(client => client.close());
+            audienceClients.forEach(clientData => {
+                if (clientData.ws.readyState === WebSocket.OPEN) {
+                    clientData.ws.close();
+                }
+            });
             audienceClients.clear();
         } else {
-            audienceClients.delete(ws);
+            // Find and remove from audience clients
+            for (const [clientId, clientData] of audienceClients.entries()) {
+                if (clientData.ws === ws) {
+                    audienceClients.delete(clientId);
+                    break;
+                }
+            }
         }
     });
 });
