@@ -34,7 +34,7 @@ const VotePage: React.FC = () => {
     Array.from({ length: BOARD_SIZE }, () => Array(BOARD_SIZE).fill(null))
   );
   const [status, setStatus] = useState<GameStatus>(GAME_STATUS.READY);
-  const [timer, setTimer] = useState(44);
+  const [timer, setTimer] = useState(30);
   const [votes, setVotes] = useState<Vote>({});
   const [selectedCell, setSelectedCell] = useState<{ row: number; col: number } | null>(null);
   const [hasVoted, setHasVoted] = useState(false);

@@ -1,5 +1,5 @@
 export const BOARD_SIZE = 15;
-export const VOTE_DURATION_SECONDS = 44;
+export const VOTE_DURATION_SECONDS = 30;
 
 export const PLAYER = {
   PROFESSOR: 1,
