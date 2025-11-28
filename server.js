@@ -206,10 +206,29 @@ wss.on('connection', (ws) => {
                     break;
                 
                 case 'AUDIENCE_JOIN':
-                     console.log('Audience member connected.');
+                     console.log('Audience member attempting to join...');
                      const clientId = data.payload?.clientId || Math.random().toString(36).substring(7);
                      const nickname = data.payload?.nickname || `Player${audienceClients.size + 1}`;
                      
+                     // Check for duplicate nickname
+                     let isDuplicate = false;
+                     for (const [id, client] of audienceClients.entries()) {
+                         if (id !== clientId && client.nickname === nickname) {
+                             isDuplicate = true;
+                             break;
+                         }
+                     }
+                     
+                     if (isDuplicate) {
+                         console.log(`❌ Nickname "${nickname}" is already taken.`);
+                         ws.send(JSON.stringify({ 
+                             type: 'NICKNAME_ERROR', 
+                             payload: { message: 'This nickname is already taken. Please choose another one.' } 
+                         }));
+                         return;
+                     }
+                     
+                     console.log(`✅ Audience member joined: ${nickname}`);
                      audienceClients.set(clientId, { ws, nickname });
                      
                      // Initialize player stats

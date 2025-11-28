@@ -69,6 +69,15 @@ const VotePage: React.FC = () => {
         setNickname(message.payload.nickname);
       }
       
+      if (message.type === 'NICKNAME_ERROR') {
+        alert(message.payload.message);
+        setShowNicknameModal(true);
+        setNickname('');
+        localStorage.removeItem('omokNickname');
+        ws.current?.close();
+        return;
+      }
+      
       if (message.type === 'GAME_STATE_UPDATE') {
         setBoard(message.payload.board);
         setStatus(message.payload.status);
